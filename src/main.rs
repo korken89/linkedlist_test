@@ -1,11 +1,13 @@
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
+use generic_array::{ArrayLength, GenericArray};
 
 use core::fmt;
-impl<T, Kind> fmt::Debug for LinkedList<T, Kind>
+impl<T, Kind, N> fmt::Debug for LinkedList<T, Kind, N>
 where
     T: PartialOrd + core::fmt::Debug,
     Kind: kind::Kind,
+    N: ArrayLength<Node<T>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("LinkedList")
@@ -22,7 +24,7 @@ where
 }
 
 #[derive(Debug)]
-struct Node<T> {
+pub struct Node<T> {
     val: MaybeUninit<T>,
     next: Option<usize>,
 }
@@ -54,34 +56,39 @@ pub mod kind {
     }
 }
 
-pub struct LinkedList<T, Kind>
+pub struct LinkedList<T, Kind, N>
 where
     T: PartialOrd,
     Kind: kind::Kind,
+    N: ArrayLength<Node<T>>,
 {
-    list: MaybeUninit<[Node<T>; 8]>,
+    list: MaybeUninit<GenericArray<Node<T>, N>>,
     head: Option<usize>,
     free: Option<usize>,
     _kind: PhantomData<Kind>,
 }
 
-impl<T, Kind> LinkedList<T, Kind>
+impl<T, Kind, N> LinkedList<T, Kind, N>
 where
     T: PartialOrd,
     Kind: kind::Kind,
+    N: ArrayLength<Node<T>>,
 {
+    /// Internal helper to not do pointer arithmetic all over the place.
     #[inline]
     fn node_at(&self, index: usize) -> &Node<T> {
         // Safety: The entire `self.list` is initialized in `new`, which makes this safe.
         unsafe { &*(self.list.as_ptr() as *const Node<T>).add(index) }
     }
 
+    /// Internal helper to not do pointer arithmetic all over the place.
     #[inline]
     fn node_at_mut(&mut self, index: usize) -> &mut Node<T> {
         // Safety: The entire `self.list` is initialized in `new`, which makes this safe.
         unsafe { &mut *(self.list.as_mut_ptr() as *mut Node<T>).add(index) }
     }
 
+    /// Internal helper to not do pointer arithmetic all over the place.
     #[inline]
     fn write_data_in_node_at(&mut self, index: usize, data: T) {
         unsafe {
@@ -89,16 +96,19 @@ where
         }
     }
 
+    /// Internal helper to not do pointer arithmetic all over the place.
     #[inline]
     fn read_data_in_node_at(&self, index: usize) -> &T {
         unsafe { &*self.node_at(index).val.as_ptr() }
     }
 
+    /// Internal helper to not do pointer arithmetic all over the place.
     #[inline]
     fn extract_data_in_node_at(&mut self, index: usize) -> T {
         unsafe { self.node_at(index).val.as_ptr().read() }
     }
 
+    /// Internal helper to not do pointer arithmetic all over the place.
     /// Safety: This can overwrite existing allocated nodes if used improperly, meaning their
     /// `Drop` methods won't run.
     #[inline]
@@ -116,9 +126,10 @@ where
             _kind: PhantomData,
         };
 
+        let len = N::to_usize();
         let mut free = 0;
 
-        while free < 8 - 1 {
+        while free < len - 1 {
             unsafe {
                 list.write_node_at(
                     free,
@@ -258,8 +269,10 @@ where
     }
 }
 
+use generic_array::typenum::consts::*;
+
 fn main() {
-    let mut ll: LinkedList<u32, Max> = LinkedList::new();
+    let mut ll: LinkedList<u32, Max, U8> = LinkedList::new();
 
     // println!("{:#?}", ll);
     // println!("{:#?}", ll);
