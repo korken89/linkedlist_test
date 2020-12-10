@@ -7,13 +7,6 @@ use generic_array::{ArrayLength, GenericArray};
 struct LinkedIndex(u8);
 
 impl LinkedIndex {
-    // #[inline]
-    // fn new(value: u8) -> Self {
-    //     assert!(value < u8::MAX);
-
-    //     LinkedIndex(value)
-    // }
-
     #[inline]
     const unsafe fn new_unchecked(value: u8) -> Self {
         LinkedIndex(value)
@@ -143,19 +136,21 @@ where
 
     pub fn push(&mut self, value: T) -> Result<(), T> {
         if let Some(new) = self.free.option() {
+            // Store the data and update the next free spot
             self.write_data_in_node_at(new as usize, value);
             self.free = self.node_at(new as usize).next;
 
             if let Some(head) = self.head.option() {
+                // Check if we need to replace head
                 if self
                     .read_data_in_node_at(head as usize)
                     .partial_cmp(self.read_data_in_node_at(new as usize))
                     != Kind::ordering()
                 {
-                    // Replace head
                     self.node_at_mut(new as usize).next = self.head;
                     self.head = unsafe { LinkedIndex::new_unchecked(new) };
                 } else {
+                    // It's not head, search the list for the correct placement
                     let mut current = head;
 
                     while let Some(next) = self.node_at(current as usize).next.option() {
@@ -183,45 +178,12 @@ where
         } else {
             Err(value)
         }
-
-        // Ptr version:
-        // if self.free.is_null() {
-        //     return Err(value);
-        // }
-
-        // let new = self.free;
-        // (*new).val = value;
-
-        // self.free = (*self.free).next;
-
-        // if self.head.is_null() || (*self.head).val <= value {
-        //     (*new).next = self.head;
-        //     self.head = new;
-        // } else {
-        //     let mut current = self.head;
-
-        //     while !(*current).next.is_null() {
-        //         if (*(*current).next).val < value {
-        //             break;
-        //         }
-        //         current = (*current).next;
-        //     }
-
-        //     (*new).next = (*current).next;
-        //     (*current).next = new;
-        // }
     }
 
     pub fn head(&self) -> Option<&T> {
         self.head
             .option()
             .map(|head| self.read_data_in_node_at(head as usize))
-
-        // if !self.head.is_null() {
-        //     Some((*self.head).val)
-        // } else {
-        //     None
-        // }
     }
 
     pub fn pop(&mut self) -> Result<T, ()> {
@@ -235,18 +197,6 @@ where
         } else {
             Err(())
         }
-
-        // let current = self.head;
-        //
-        // if !self.head.is_null() {
-        //     self.head = (*self.head).next;
-        //     (*current).next = self.free;
-        //     self.free = current;
-        //
-        //     Ok(())
-        // } else {
-        //     Err(())
-        // }
     }
 
     pub fn full(&self) -> bool {
