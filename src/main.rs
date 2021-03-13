@@ -3,29 +3,29 @@ pub mod linked_list;
 use generic_array::typenum::consts::*;
 use linked_list::{LinkedList, Max, Min};
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct S(pub u32);
+
+impl Drop for S {
+    fn drop(&mut self) {
+        println!("Dropping {}", self.0)
+    }
+}
+
 fn main() {
-    let mut ll: LinkedList<u32, Max, U8> = LinkedList::new();
+    let mut ll: LinkedList<S, Max, U8> = LinkedList::new();
 
-    // println!("{:#?}", ll);
-    // println!("{:#?}", ll);
-    ll.push(1).unwrap();
-    ll.push(70).unwrap();
-    // println!("{:#?}", ll);
-    ll.push(2).unwrap();
-    // println!("{:#?}", ll);
-    ll.push(0).unwrap();
-    // println!("{:#?}", ll);
-    ll.push(7).unwrap();
-    // println!experimental(experimental"{:#?}", ll);
-    ll.push(5).unwrap();
-    // println!("{:#?}", ll);
-    ll.push(6).unwrap();
-    // println!("{:#?}", ll);
-    ll.push(11).unwrap();
-    // println!("{:#?}", ll);
+    ll.push(S(1)).unwrap();
+    ll.push(S(70)).unwrap();
+    ll.push(S(2)).unwrap();
+    ll.push(S(0)).unwrap();
+    ll.push(S(7)).unwrap();
+    ll.push(S(5)).unwrap();
+    ll.push(S(6)).unwrap();
+    ll.push(S(11)).unwrap();
 
-    if let Err(v) = ll.push(8) {
-        println!("Rejected {}", v);
+    if let Err(v) = ll.push(S(8)) {
+        println!("Rejected {}", v.0);
     } else {
         panic!("Sould have been rejected")
     }
@@ -33,12 +33,14 @@ fn main() {
     // println!("{:#?}", ll);
 
     println!("List: {:?}", ll);
-    let mut find = ll.find_mut(|v| {
-        println!("v: {}", *v);
-        *v == 5
-    }).unwrap();
+    let mut find = ll
+        .find_mut(|v| {
+            println!("v: {}", v.0);
+            *v == S(5)
+        })
+        .unwrap();
 
-    *find += 1000;
+    find.0 += 1000;
     find.finish();
 
     println!("List: {:?}", ll);
@@ -47,27 +49,33 @@ fn main() {
 
     println!("Iter");
     for v in ll.iter() {
-        println!("v: {}", v);
+        println!("v: {}", v.0);
     }
 
     println!("");
 
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
+    ll.find_mut(|v| v.0 == 1005).unwrap().pop();
+
+    // println!("pop");
+    // ll.pop();
+    // println!("pop after");
+
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
 }

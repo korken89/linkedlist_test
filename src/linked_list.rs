@@ -2,6 +2,7 @@ use core::fmt;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut};
+use core::ptr;
 use generic_array::{ArrayLength, GenericArray};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -110,11 +111,23 @@ where
         self.pop_internal()
     }
 
-    /// This will resort the element into the list.
+    /// This will resort the element into the correct position in the list in needed.
+    /// Same as calling `drop`.
     ///
     /// Complexity is worst-case O(N).
     #[inline]
-    pub fn finish(mut self) {
+    pub fn finish(self) {
+        drop(self)
+    }
+}
+
+impl<T, Kind, N> Drop for FindMut<'_, T, Kind, N>
+where
+    T: PartialEq + PartialOrd,
+    Kind: kind::Kind,
+    N: ArrayLength<Node<T>>,
+{
+    fn drop(&mut self) {
         // Only resort the list if the element has changed
         if self.maybe_changed {
             let val = self.pop_internal();
@@ -435,6 +448,26 @@ where
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.head.option().is_none()
+    }
+}
+
+impl<T, Kind, N> Drop for LinkedList<T, Kind, N>
+where
+    T: PartialEq + PartialOrd,
+    Kind: kind::Kind,
+    N: ArrayLength<Node<T>>,
+{
+    fn drop(&mut self) {
+        let mut index = self.head;
+
+        while let Some(i) = index.option() {
+            let node = self.node_at_mut(i as usize);
+            index = node.next;
+
+            unsafe {
+                ptr::drop_in_place(node.val.as_mut_ptr());
+            }
+        }
     }
 }
 
