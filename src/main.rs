@@ -16,7 +16,7 @@ fn main() {
     ll.push(0).unwrap();
     // println!("{:#?}", ll);
     ll.push(7).unwrap();
-    // println!("{:#?}", ll);
+    // println!experimental(experimental"{:#?}", ll);
     ll.push(5).unwrap();
     // println!("{:#?}", ll);
     ll.push(6).unwrap();
@@ -32,22 +32,42 @@ fn main() {
 
     // println!("{:#?}", ll);
 
-    println!("Head: {:?}", ll.head());
+    println!("List: {:?}", ll);
+    let mut find = ll.find_mut(|v| {
+        println!("v: {}", *v);
+        *v == 5
+    }).unwrap();
+
+    *find += 1000;
+    find.finish();
+
+    println!("List: {:?}", ll);
+
+    println!("");
+
+    println!("Iter");
+    for v in ll.iter() {
+        println!("v: {}", v);
+    }
+
+    println!("");
+
+    println!("Head: {:?}", ll.peek());
     println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.head());
+    println!("Head: {:?}", ll.peek());
     println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.head());
+    println!("Head: {:?}", ll.peek());
     println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.head());
+    println!("Head: {:?}", ll.peek());
     println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.head());
+    println!("Head: {:?}", ll.peek());
     println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.head());
+    println!("Head: {:?}", ll.peek());
     println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.head());
+    println!("Head: {:?}", ll.peek());
     println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.head());
+    println!("Head: {:?}", ll.peek());
     println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.head());
+    println!("Head: {:?}", ll.peek());
     println!("Pop: {:?}", ll.pop());
 }
