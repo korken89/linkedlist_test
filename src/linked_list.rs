@@ -377,7 +377,7 @@ where
             return Some(FindMut {
                 is_head: true,
                 prev_index: LinkedIndex::none(),
-                index: LinkedIndex::none(),
+                index: self.head,
                 list: self,
                 maybe_changed: false,
             });
@@ -600,5 +600,28 @@ mod tests {
         ll.find_mut(|v| *v == 1003).unwrap().pop();
 
         assert_eq!(ll.peek().unwrap(), &1002);
+    }
+
+    #[test]
+    fn test_updating_1() {
+        let mut ll: LinkedList<u32, Max, U3> = LinkedList::new();
+        ll.push(1).unwrap();
+
+        let v = ll.pop().unwrap();
+
+        assert_eq!(v, 1);
+    }
+
+    #[test]
+    fn test_updating_2() {
+        let mut ll: LinkedList<u32, Max, U3> = LinkedList::new();
+        ll.push(1).unwrap();
+
+        let mut find = ll.find_mut(|v| *v == 1).unwrap();
+
+        *find += 1000;
+        find.finish();
+
+        assert_eq!(ll.peek().unwrap(), &1001);
     }
 }
