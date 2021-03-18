@@ -1,6 +1,5 @@
 pub mod linked_list;
 
-use generic_array::typenum::consts::*;
 use linked_list::{LinkedList, Max, Min};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -13,7 +12,7 @@ impl Drop for S {
 }
 
 fn main() {
-    let mut ll: LinkedList<S, Max, U8> = LinkedList::new();
+    let mut ll: LinkedList<S, Max, 8> = LinkedList::new();
 
     ll.push(S(1)).unwrap();
     ll.push(S(70)).unwrap();
