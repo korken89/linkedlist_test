@@ -554,7 +554,7 @@ mod tests {
 
     #[test]
     fn test_updating_1() {
-        let mut ll: LinkedList<u32, Max, U3> = LinkedList::new();
+        let mut ll: LinkedList<u32, Max, 3> = LinkedList::new();
         ll.push(1).unwrap();
 
         let v = ll.pop().unwrap();
@@ -564,7 +564,7 @@ mod tests {
 
     #[test]
     fn test_updating_2() {
-        let mut ll: LinkedList<u32, Max, U3> = LinkedList::new();
+        let mut ll: LinkedList<u32, Max, 3> = LinkedList::new();
         ll.push(1).unwrap();
 
         let mut find = ll.find_mut(|v| *v == 1).unwrap();
