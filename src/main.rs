@@ -1,6 +1,6 @@
 pub mod linked_list;
 
-use linked_list::{LinkedList, Max, Min};
+use linked_list::{LinkedList, LinkedIndexU16, Max, Min};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct S(pub u32);
@@ -12,7 +12,7 @@ impl Drop for S {
 }
 
 fn main() {
-    let mut ll: LinkedList<S, Max, 8> = LinkedList::new();
+    let mut ll: LinkedList<S, LinkedIndexU16, Min, 8> = LinkedList::new_u16();
 
     ll.push(S(1)).unwrap();
     ll.push(S(70)).unwrap();
