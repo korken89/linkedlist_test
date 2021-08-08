@@ -5,9 +5,13 @@ use core::ops::{Deref, DerefMut};
 use core::ptr;
 
 pub trait LinkedListIndex {
+    #[doc(hidden)]
     unsafe fn new_unchecked(val: usize) -> Self;
+    #[doc(hidden)]
     unsafe fn get_unchecked(self) -> usize;
+    #[doc(hidden)]
     fn option(self) -> Option<usize>;
+    #[doc(hidden)]
     fn none() -> Self;
 }
 
