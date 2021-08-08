@@ -1,5 +1,3 @@
-pub mod linked_list;
-
 use linked_list::{LinkedList, LinkedIndexU16, Max, Min};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -58,22 +56,22 @@ fn main() {
 
     println!("List: {:?}", ll);
 
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
-    println!("Head: {:?}", ll.peek());
-    println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
+    // println!("Head: {:?}", ll.peek());
+    // println!("Pop: {:?}", ll.pop());
 }

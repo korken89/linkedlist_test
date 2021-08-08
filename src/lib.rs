@@ -4,7 +4,7 @@ use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut};
 use core::ptr;
 
-pub trait LinkedListIndex {
+pub trait LinkedListIndex: Copy {
     #[doc(hidden)]
     unsafe fn new_unchecked(val: usize) -> Self;
     #[doc(hidden)]
@@ -15,18 +15,18 @@ pub trait LinkedListIndex {
     fn none() -> Self;
 }
 
-/// Min sorted linked list.
+/// Marker for Min sorted [`LinkedList`].
 pub struct Min;
 
-/// Max sorted linked list.
+/// Marker for Max sorted [`LinkedList`].
 pub struct Max;
 
-/// Sealed traits and implementations for `linked_list`
-pub mod kind {
+/// Sealed traits and implementations for [`LinkedList`].
+mod kind {
     use super::{Max, Min};
     use core::cmp::Ordering;
 
-    /// The linked list kind: min first or max first
+    /// The linked list kind: minimum first or maximum first.
     pub unsafe trait Kind {
         #[doc(hidden)]
         fn ordering() -> Option<Ordering>;
@@ -56,7 +56,7 @@ pub struct Node<T, Idx> {
 /// The linked list.
 pub struct LinkedList<T, Idx, Kind, const N: usize>
 where
-    Idx: LinkedListIndex + Copy,
+    Idx: LinkedListIndex,
 {
     list: [Node<T, Idx>; N],
     head: Idx,
@@ -64,333 +64,152 @@ where
     _kind: PhantomData<Kind>,
 }
 
-//
-// ================== u8 =========================
-//
+macro_rules! impl_index_and_const_new {
+    ($name:ident, $ty:ty, $new_name:ident, $max_val:literal) => {
+        #[doc = concat!(
+            "Index for the [`LinkedList`] using `", stringify!($ty), "` as backing storage.")
+        ]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+        pub struct $name($ty);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LinkedIndexU8(u8);
+        impl LinkedListIndex for $name {
+            #[doc = concat!("Safety: `val` is <= `", stringify!($max_val), "`.")]
+            #[inline(always)]
+            unsafe fn new_unchecked(val: usize) -> Self {
+                Self::new_unchecked(val as $ty)
+            }
 
-impl LinkedListIndex for LinkedIndexU8 {
-    #[inline(always)]
-    unsafe fn new_unchecked(val: usize) -> Self {
-        Self::new_unchecked(val as u8)
-    }
+            /// This is only valid if `self.option()` is not `None`.
+            #[inline(always)]
+            unsafe fn get_unchecked(self) -> usize {
+                self.0 as usize
+            }
 
-    #[inline(always)]
-    unsafe fn get_unchecked(self) -> usize {
-        Self::get_unchecked(self) as usize
-    }
+            #[inline(always)]
+            fn option(self) -> Option<usize> {
+                if self.0 == <$ty>::MAX {
+                    None
+                } else {
+                    Some(self.0 as usize)
+                }
+            }
 
-    #[inline(always)]
-    fn option(self) -> Option<usize> {
-        Self::option(self)
-    }
+            #[inline(always)]
+            fn none() -> Self {
+                Self::none()
+            }
+        }
 
-    #[inline(always)]
-    fn none() -> Self {
-        Self::none()
-    }
-}
+        impl $name {
+            /// Needed for a `const fn new()`.
+            #[inline]
+            const unsafe fn new_unchecked(value: $ty) -> Self {
+                $name(value)
+            }
 
-impl LinkedIndexU8 {
-    #[inline]
-    const unsafe fn new_unchecked(value: u8) -> Self {
-        LinkedIndexU8(value)
-    }
+            /// Needed for a `const fn new()`.
+            #[inline]
+            const fn none() -> Self {
+                $name(<$ty>::MAX)
+            }
+        }
 
-    #[inline]
-    const unsafe fn get_unchecked(self) -> u8 {
-        self.0
-    }
+        impl<T, Kind, const N: usize> LinkedList<T, $name, Kind, N> {
+            const UNINIT: Node<T, $name> = Node {
+                val: MaybeUninit::uninit(),
+                next: $name::none(),
+            };
 
-    #[inline]
-    const fn none() -> Self {
-        LinkedIndexU8(u8::MAX)
-    }
+            /// Create a new linked list.
+            pub const fn $new_name() -> Self {
+                let mut list = LinkedList {
+                    list: [Self::UNINIT; N],
+                    head: $name::none(),
+                    free: unsafe { $name::new_unchecked(0) },
+                    _kind: PhantomData,
+                };
 
-    #[inline]
-    const fn option(self) -> Option<usize> {
-        if self.0 == u8::MAX {
-            None
-        } else {
-            Some(self.0 as usize)
+                if N == 0 {
+                    list.free = $name::none();
+                    return list;
+                }
+
+                let mut free = 0;
+
+                // Initialize indexes
+                while free < N - 1 {
+                    list.list[free].next = unsafe { $name::new_unchecked(free as $ty + 1) };
+                    free += 1;
+                }
+
+                list
+            }
         }
     }
 }
 
-impl<T, Kind, const N: usize> LinkedList<T, LinkedIndexU8, Kind, N> {
-    const UNINIT_U8: Node<T, LinkedIndexU8> = Node {
-        val: MaybeUninit::uninit(),
-        next: LinkedIndexU8::none(),
-    };
-
-    /// Create a new linked list.
-    pub const fn new_u8() -> Self {
-        let mut list = LinkedList {
-            list: [Self::UNINIT_U8; N],
-            head: LinkedIndexU8::none(),
-            free: unsafe { LinkedIndexU8::new_unchecked(0) },
-            _kind: PhantomData,
-        };
-
-        if N == 0 {
-            list.free = LinkedIndexU8::none();
-            return list;
-        }
-
-        let mut free = 0;
-
-        // Initialize indexes
-        while free < N - 1 {
-            list.list[free].next = unsafe { LinkedIndexU8::new_unchecked(free as u8 + 1) };
-            free += 1;
-        }
-
-        list
-    }
-}
-
-//
-// ================================================
-//
-
-//
-// ================== u16 =========================
-//
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LinkedIndexU16(u16);
-
-impl LinkedListIndex for LinkedIndexU16 {
-    #[inline(always)]
-    unsafe fn new_unchecked(val: usize) -> Self {
-        Self::new_unchecked(val as u16)
-    }
-
-    #[inline(always)]
-    unsafe fn get_unchecked(self) -> usize {
-        Self::get_unchecked(self) as usize
-    }
-
-    #[inline(always)]
-    fn option(self) -> Option<usize> {
-        Self::option(self)
-    }
-
-    #[inline(always)]
-    fn none() -> Self {
-        Self::none()
-    }
-}
-
-impl LinkedIndexU16 {
-    #[inline]
-    const unsafe fn new_unchecked(value: u16) -> Self {
-        LinkedIndexU16(value)
-    }
-
-    #[inline]
-    const unsafe fn get_unchecked(self) -> u16 {
-        self.0
-    }
-
-    #[inline]
-    const fn none() -> Self {
-        LinkedIndexU16(u16::MAX)
-    }
-
-    #[inline]
-    const fn option(self) -> Option<usize> {
-        if self.0 == u16::MAX {
-            None
-        } else {
-            Some(self.0 as usize)
-        }
-    }
-}
-
-impl<T, Kind, const N: usize> LinkedList<T, LinkedIndexU16, Kind, N> {
-    const UNINIT_U16: Node<T, LinkedIndexU16> = Node {
-        val: MaybeUninit::uninit(),
-        next: LinkedIndexU16::none(),
-    };
-
-    /// Create a new linked list.
-    pub const fn new_u16() -> Self {
-        let mut list = LinkedList {
-            list: [Self::UNINIT_U16; N],
-            head: LinkedIndexU16::none(),
-            free: unsafe { LinkedIndexU16::new_unchecked(0) },
-            _kind: PhantomData,
-        };
-
-        if N == 0 {
-            list.free = LinkedIndexU16::none();
-            return list;
-        }
-
-        let mut free = 0;
-
-        // Initialize indexes
-        while free < N - 1 {
-            list.list[free].next = unsafe { LinkedIndexU16::new_unchecked(free as u16 + 1) };
-            free += 1;
-        }
-
-        list
-    }
-}
-
-//
-// ================================================
-//
-
-//
-// ================== usize =========================
-//
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LinkedIndexUsize(usize);
-
-impl LinkedListIndex for LinkedIndexUsize {
-    #[inline(always)]
-    unsafe fn new_unchecked(val: usize) -> Self {
-        Self::new_unchecked(val)
-    }
-
-    #[inline(always)]
-    unsafe fn get_unchecked(self) -> usize {
-        Self::get_unchecked(self)
-    }
-
-    #[inline(always)]
-    fn option(self) -> Option<usize> {
-        Self::option(self)
-    }
-
-    #[inline(always)]
-    fn none() -> Self {
-        Self::none()
-    }
-}
-
-impl LinkedIndexUsize {
-    #[inline]
-    const unsafe fn new_unchecked(value: usize) -> Self {
-        LinkedIndexUsize(value)
-    }
-
-    #[inline]
-    const unsafe fn get_unchecked(self) -> usize {
-        self.0
-    }
-
-    #[inline]
-    const fn none() -> Self {
-        LinkedIndexUsize(usize::MAX)
-    }
-
-    #[inline]
-    const fn option(self) -> Option<usize> {
-        if self.0 == usize::MAX {
-            None
-        } else {
-            Some(self.0 as usize)
-        }
-    }
-}
-
-impl<T, Kind, const N: usize> LinkedList<T, LinkedIndexUsize, Kind, N> {
-    const UNINIT_USIZE: Node<T, LinkedIndexUsize> = Node {
-        val: MaybeUninit::uninit(),
-        next: LinkedIndexUsize::none(),
-    };
-
-    /// Create a new linked list.
-    pub const fn new_usize() -> Self {
-        let mut list = LinkedList {
-            list: [Self::UNINIT_USIZE; N],
-            head: LinkedIndexUsize::none(),
-            free: unsafe { LinkedIndexUsize::new_unchecked(0) },
-            _kind: PhantomData,
-        };
-
-        if N == 0 {
-            list.free = LinkedIndexUsize::none();
-            return list;
-        }
-
-        let mut free = 0;
-
-        // Initialize indexes
-        while free < N - 1 {
-            list.list[free].next = unsafe { LinkedIndexUsize::new_unchecked(free + 1) };
-            free += 1;
-        }
-
-        list
-    }
-}
-
-//
-// ================================================
-//
+impl_index_and_const_new!(LinkedIndexU8, u8, new_u8, 254); // val is 2^8 - 2 (one less than max)
+impl_index_and_const_new!(LinkedIndexU16, u16, new_u16, 65_534); // val is 2^16 - 2
+impl_index_and_const_new!(LinkedIndexUsize, usize, new_usize, 4_294_967_294); // val is 2^32 - 2
 
 impl<T, Idx, Kind, const N: usize> LinkedList<T, Idx, Kind, N>
 where
-    Idx: LinkedListIndex + Copy,
+    Idx: LinkedListIndex,
 {
-    /// Internal helper
+    /// Internal access helper
     #[inline(always)]
     fn node_at(&self, index: usize) -> &Node<T, Idx> {
         // Safety: The entire `self.list` is initialized in `new`, which makes this safe.
         unsafe { self.list.get_unchecked(index) }
     }
 
-    /// Internal helper
+    /// Internal access helper
     #[inline(always)]
     fn node_at_mut(&mut self, index: usize) -> &mut Node<T, Idx> {
         // Safety: The entire `self.list` is initialized in `new`, which makes this safe.
         unsafe { self.list.get_unchecked_mut(index) }
     }
 
-    /// Internal helper
+    /// Internal access helper
     #[inline(always)]
     fn write_data_in_node_at(&mut self, index: usize, data: T) {
+        // Safety: The entire `self.list` is initialized in `new`, which makes this safe.
         unsafe {
             self.node_at_mut(index).val.as_mut_ptr().write(data);
         }
     }
 
-    /// Internal helper
+    /// Internal access helper
     #[inline(always)]
     fn read_data_in_node_at(&self, index: usize) -> &T {
+        // Safety: The entire `self.list` is initialized in `new`, which makes this safe.
         unsafe { &*self.node_at(index).val.as_ptr() }
     }
 
-    /// Internal helper
+    /// Internal access helper
     #[inline(always)]
     fn read_mut_data_in_node_at(&mut self, index: usize) -> &mut T {
+        // Safety: The entire `self.list` is initialized in `new`, which makes this safe.
         unsafe { &mut *self.node_at_mut(index).val.as_mut_ptr() }
     }
 
-    /// Internal helper
+    /// Internal access helper
     #[inline(always)]
     fn extract_data_in_node_at(&mut self, index: usize) -> T {
+        // Safety: The entire `self.list` is initialized in `new`, which makes this safe.
         unsafe { self.node_at(index).val.as_ptr().read() }
     }
 }
 
 impl<T, Idx, Kind, const N: usize> LinkedList<T, Idx, Kind, N>
 where
-    T: PartialEq + PartialOrd,
-    Idx: LinkedListIndex + Copy,
+    T: PartialOrd,
+    Idx: LinkedListIndex,
     Kind: kind::Kind,
 {
-    /// Push unchecked
+    /// Pushes a value onto the list without checking if the list is full.
     ///
-    /// Complexity is O(N).
+    /// Complexity is worst-case `O(N)`.
     ///
     /// # Safety
     ///
@@ -438,7 +257,27 @@ where
 
     /// Pushes an element to the linked list and sorts it into place.
     ///
-    /// Complexity is O(N).
+    /// Complexity is worst-case `O(N)`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use linked_list::{LinkedList, Max};
+    /// let mut ll: LinkedList<_, _, Max, 3> = LinkedList::new_usize();
+    ///
+    /// // The largest value will always be first
+    /// ll.push(1).unwrap();
+    /// assert_eq!(ll.peek(), Some(&1));
+    ///
+    /// ll.push(2).unwrap();
+    /// assert_eq!(ll.peek(), Some(&2));
+    ///
+    /// ll.push(3).unwrap();
+    /// assert_eq!(ll.peek(), Some(&3));
+    ///
+    /// // This will not fit in the queue.
+    /// assert_eq!(ll.push(4), Err(4));
+    /// ```
     pub fn push(&mut self, value: T) -> Result<(), T> {
         if !self.is_full() {
             Ok(unsafe { self.push_unchecked(value) })
@@ -448,6 +287,22 @@ where
     }
 
     /// Get an iterator over the sorted list.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use linked_list::{LinkedList, Max};
+    /// let mut ll: LinkedList<_, _, Max, 3> = LinkedList::new_usize();
+    ///
+    /// ll.push(1).unwrap();
+    /// ll.push(2).unwrap();
+    ///
+    /// let mut iter = ll.iter();
+    ///
+    /// assert_eq!(iter.next(), Some(&2));
+    /// assert_eq!(iter.next(), Some(&1));
+    /// assert_eq!(iter.next(), None);
+    /// ```
     pub fn iter(&self) -> Iter<'_, T, Idx, Kind, N> {
         Iter {
             list: self,
@@ -455,7 +310,28 @@ where
         }
     }
 
-    /// Find an element in the list.
+    /// Find an element in the list that can be changed and resorted.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use linked_list::{LinkedList, Max};
+    /// let mut ll: LinkedList<_, _, Max, 3> = LinkedList::new_usize();
+    ///
+    /// ll.push(1).unwrap();
+    /// ll.push(2).unwrap();
+    /// ll.push(3).unwrap();
+    ///
+    /// // Find a value and update it
+    /// let mut find = ll.find_mut(|v| *v == 2).unwrap();
+    /// *find += 1000;
+    /// find.finish();
+    ///
+    /// assert_eq!(ll.pop(), Ok(1002));
+    /// assert_eq!(ll.pop(), Ok(3));
+    /// assert_eq!(ll.pop(), Ok(1));
+    /// assert_eq!(ll.pop(), Err(()));
+    /// ```
     pub fn find_mut<F>(&mut self, mut f: F) -> Option<FindMut<'_, T, Idx, Kind, N>>
     where
         F: FnMut(&T) -> bool,
@@ -493,13 +369,38 @@ where
     }
 
     /// Peek at the first element.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use linked_list::{LinkedList, Max, Min};
+    /// let mut ll_max: LinkedList<_, _, Max, 3> = LinkedList::new_usize();
+    ///
+    /// // The largest value will always be first
+    /// ll_max.push(1).unwrap();
+    /// assert_eq!(ll_max.peek(), Some(&1));
+    /// ll_max.push(2).unwrap();
+    /// assert_eq!(ll_max.peek(), Some(&2));
+    /// ll_max.push(3).unwrap();
+    /// assert_eq!(ll_max.peek(), Some(&3));
+    ///
+    /// let mut ll_min: LinkedList<_, _, Min, 3> = LinkedList::new_usize();
+    ///
+    /// // The Smallest value will always be first
+    /// ll_min.push(3).unwrap();
+    /// assert_eq!(ll_min.peek(), Some(&3));
+    /// ll_min.push(2).unwrap();
+    /// assert_eq!(ll_min.peek(), Some(&2));
+    /// ll_min.push(1).unwrap();
+    /// assert_eq!(ll_min.peek(), Some(&1));
+    /// ```
     pub fn peek(&self) -> Option<&T> {
         self.head
             .option()
             .map(|head| self.read_data_in_node_at(head))
     }
 
-    /// Pop unchecked
+    /// Pop an element from the list without checking so the list is not empty.
     ///
     /// # Safety
     ///
@@ -516,7 +417,21 @@ where
 
     /// Pops the first element in the list.
     ///
-    /// Complexity is O(1).
+    /// Complexity is worst-case `O(1)`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use linked_list::{LinkedList, Max};
+    /// let mut ll: LinkedList<_, _, Max, 3> = LinkedList::new_usize();
+    ///
+    /// ll.push(1).unwrap();
+    /// ll.push(2).unwrap();
+    ///
+    /// assert_eq!(ll.pop(), Ok(2));
+    /// assert_eq!(ll.pop(), Ok(1));
+    /// assert_eq!(ll.pop(), Err(()));
+    /// ```
     pub fn pop(&mut self) -> Result<T, ()> {
         if !self.is_empty() {
             Ok(unsafe { self.pop_unchecked() })
@@ -526,12 +441,40 @@ where
     }
 
     /// Checks if the linked list is full.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use linked_list::{LinkedList, Max};
+    /// let mut ll: LinkedList<_, _, Max, 3> = LinkedList::new_usize();
+    ///
+    /// assert_eq!(ll.is_full(), false);
+    ///
+    /// ll.push(1).unwrap();
+    /// assert_eq!(ll.is_full(), false);
+    /// ll.push(2).unwrap();
+    /// assert_eq!(ll.is_full(), false);
+    /// ll.push(3).unwrap();
+    /// assert_eq!(ll.is_full(), true);
+    /// ```
     #[inline]
     pub fn is_full(&self) -> bool {
         self.free.option().is_none()
     }
 
     /// Checks if the linked list is empty.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use linked_list::{LinkedList, Max};
+    /// let mut ll: LinkedList<_, _, Max, 3> = LinkedList::new_usize();
+    ///
+    /// assert_eq!(ll.is_empty(), true);
+    ///
+    /// ll.push(1).unwrap();
+    /// assert_eq!(ll.is_empty(), false);
+    /// ```
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.head.option().is_none()
@@ -541,8 +484,8 @@ where
 /// Iterator for the linked list.
 pub struct Iter<'a, T, Idx, Kind, const N: usize>
 where
-    T: PartialEq + PartialOrd,
-    Idx: LinkedListIndex + Copy,
+    T: PartialOrd,
+    Idx: LinkedListIndex,
     Kind: kind::Kind,
 {
     list: &'a LinkedList<T, Idx, Kind, N>,
@@ -551,8 +494,8 @@ where
 
 impl<'a, T, Idx, Kind, const N: usize> Iterator for Iter<'a, T, Idx, Kind, N>
 where
-    T: PartialEq + PartialOrd,
-    Idx: LinkedListIndex + Copy,
+    T: PartialOrd,
+    Idx: LinkedListIndex,
     Kind: kind::Kind,
 {
     type Item = &'a T;
@@ -570,8 +513,8 @@ where
 /// Comes from [`LinkedList::find_mut`].
 pub struct FindMut<'a, T, Idx, Kind, const N: usize>
 where
-    T: PartialEq + PartialOrd,
-    Idx: LinkedListIndex + Copy,
+    T: PartialOrd,
+    Idx: LinkedListIndex,
     Kind: kind::Kind,
 {
     list: &'a mut LinkedList<T, Idx, Kind, N>,
@@ -583,8 +526,8 @@ where
 
 impl<'a, T, Idx, Kind, const N: usize> FindMut<'a, T, Idx, Kind, N>
 where
-    T: PartialEq + PartialOrd,
-    Idx: LinkedListIndex + Copy,
+    T: PartialOrd,
+    Idx: LinkedListIndex,
     Kind: kind::Kind,
 {
     fn pop_internal(&mut self) -> T {
@@ -609,16 +552,60 @@ where
 
     /// This will pop the element from the list.
     ///
-    /// Complexity is O(1).
+    /// Complexity is worst-case `O(1)`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use linked_list::{LinkedList, Max};
+    /// let mut ll: LinkedList<_, _, Max, 3> = LinkedList::new_usize();
+    ///
+    /// ll.push(1).unwrap();
+    /// ll.push(2).unwrap();
+    /// ll.push(3).unwrap();
+    ///
+    /// // Find a value and update it
+    /// let mut find = ll.find_mut(|v| *v == 2).unwrap();
+    /// find.pop();
+    ///
+    /// assert_eq!(ll.pop(), Ok(3));
+    /// assert_eq!(ll.pop(), Ok(1));
+    /// assert_eq!(ll.pop(), Err(()));
+    /// ```
     #[inline]
     pub fn pop(mut self) -> T {
         self.pop_internal()
     }
 
-    /// This will resort the element into the correct position in the list in needed.
+    /// This will resort the element into the correct position in the list if needed. The resorting
+    /// will only happen if the element has been accessed mutably.
+    ///
     /// Same as calling `drop`.
     ///
-    /// Complexity is worst-case O(N).
+    /// Complexity is worst-case `O(N)`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use linked_list::{LinkedList, Max};
+    /// let mut ll: LinkedList<_, _, Max, 3> = LinkedList::new_usize();
+    ///
+    /// ll.push(1).unwrap();
+    /// ll.push(2).unwrap();
+    /// ll.push(3).unwrap();
+    ///
+    /// let mut find = ll.find_mut(|v| *v == 2).unwrap();
+    /// find.finish(); // No resort, we did not access the value.
+    ///
+    /// let mut find = ll.find_mut(|v| *v == 2).unwrap();
+    /// *find += 1000;
+    /// find.finish(); // Will resort, we accessed (and updated) the value.
+    ///
+    /// assert_eq!(ll.pop(), Ok(1002));
+    /// assert_eq!(ll.pop(), Ok(3));
+    /// assert_eq!(ll.pop(), Ok(1));
+    /// assert_eq!(ll.pop(), Err(()));
+    /// ```
     #[inline]
     pub fn finish(self) {
         drop(self)
@@ -627,8 +614,8 @@ where
 
 impl<T, Idx, Kind, const N: usize> Drop for FindMut<'_, T, Idx, Kind, N>
 where
-    T: PartialEq + PartialOrd,
-    Idx: LinkedListIndex + Copy,
+    T: PartialOrd,
+    Idx: LinkedListIndex,
     Kind: kind::Kind,
 {
     fn drop(&mut self) {
@@ -642,8 +629,8 @@ where
 
 impl<T, Idx, Kind, const N: usize> Deref for FindMut<'_, T, Idx, Kind, N>
 where
-    T: PartialEq + PartialOrd,
-    Idx: LinkedListIndex + Copy,
+    T: PartialOrd,
+    Idx: LinkedListIndex,
     Kind: kind::Kind,
 {
     type Target = T;
@@ -656,8 +643,8 @@ where
 
 impl<T, Idx, Kind, const N: usize> DerefMut for FindMut<'_, T, Idx, Kind, N>
 where
-    T: PartialEq + PartialOrd,
-    Idx: LinkedListIndex + Copy,
+    T: PartialOrd,
+    Idx: LinkedListIndex,
     Kind: kind::Kind,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -667,34 +654,35 @@ where
     }
 }
 
-impl<T, Idx, Kind, const N: usize> fmt::Debug for FindMut<'_, T, Idx, Kind, N>
-where
-    T: PartialEq + PartialOrd + core::fmt::Debug,
-    Idx: LinkedListIndex + Copy,
-    Kind: kind::Kind,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FindMut")
-            .field("prev_index", &self.prev_index.option())
-            .field("index", &self.index.option())
-            .field(
-                "prev_value",
-                &self
-                    .list
-                    .read_data_in_node_at(self.prev_index.option().unwrap()),
-            )
-            .field(
-                "value",
-                &self.list.read_data_in_node_at(self.index.option().unwrap()),
-            )
-            .finish()
-    }
-}
+// /// Useful for debug during development.
+// impl<T, Idx, Kind, const N: usize> fmt::Debug for FindMut<'_, T, Idx, Kind, N>
+// where
+//     T: PartialOrd + core::fmt::Debug,
+//     Idx: LinkedListIndex,
+//     Kind: kind::Kind,
+// {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         f.debug_struct("FindMut")
+//             .field("prev_index", &self.prev_index.option())
+//             .field("index", &self.index.option())
+//             .field(
+//                 "prev_value",
+//                 &self
+//                     .list
+//                     .read_data_in_node_at(self.prev_index.option().unwrap()),
+//             )
+//             .field(
+//                 "value",
+//                 &self.list.read_data_in_node_at(self.index.option().unwrap()),
+//             )
+//             .finish()
+//     }
+// }
 
 impl<T, Idx, Kind, const N: usize> fmt::Debug for LinkedList<T, Idx, Kind, N>
 where
-    T: PartialEq + PartialOrd + core::fmt::Debug,
-    Idx: LinkedListIndex + Copy,
+    T: PartialOrd + core::fmt::Debug,
+    Idx: LinkedListIndex,
     Kind: kind::Kind,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -704,7 +692,7 @@ where
 
 impl<T, Idx, Kind, const N: usize> Drop for LinkedList<T, Idx, Kind, N>
 where
-    Idx: LinkedListIndex + Copy,
+    Idx: LinkedListIndex,
 {
     fn drop(&mut self) {
         let mut index = self.head;
@@ -722,7 +710,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
     #[test]
